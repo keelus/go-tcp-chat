@@ -16,62 +16,47 @@ const PORT = "6969"
 var UserList []*User = make([]*User, 0)
 
 func sendBroadcast(user User, broadcast common.Broadcast) {
+	broadcast.SentFrom = common.L_SERVER
+	broadcast.Date = time.Now().Unix()
 
 	err := user.Encoder.Encode(broadcast)
 	if err != nil {
-		log.Printf("Error sending the broadcast to '%s'\n", user.Connection.RemoteAddr())
-	} else {
-		log.Printf("Broadcast sent to '%s'\n", user.Connection.RemoteAddr())
-		log.Printf("Broadcast content: '%s'", broadcast.Content)
+		log.Printf("Error sending a broadcast to '%s'\n", user.Connection.RemoteAddr())
 	}
-
-	// time.Sleep(time.Second * 2)
 }
 
 func sendUserMessage(message common.Broadcast) {
 	for _, registeredUser := range UserList {
 		if registeredUser.Connection != nil {
-			encoder := gob.NewEncoder(registeredUser.Connection)
-			err := encoder.Encode(message)
-			if err != nil {
-				log.Printf("Error while sending the message to the user '%s'\n", registeredUser.Username)
-				continue
-			}
-			log.Printf("Broadcasted to user '%s'\n", registeredUser.Username)
-			// registeredUser.Connection.Write([]byte(fmt.Sprintf("[%d]<%s> %s", message.Date, []byte(message.Sender), []byte(message.Content))))
+			sendBroadcast(*registeredUser, message)
 		}
 	}
 }
 
-func initialSetup(user *User) {
+func initialSetup(user *User) error {
 	reader := bufio.NewReader(user.Connection)
 	for {
-		log.Printf("ZONE 1")
 		sendBroadcast(*user, common.Broadcast{
 			Sender:    "__SERVER__",
 			Content:   "Choose an username [4-15 chars]: ",
-			Date:      time.Now().Unix(),
-			Type:      common.MESSAGE,
+			Type:      common.TEXT,
 			Printable: true,
 			Code:      common.C_OK,
 		})
 
-		log.Printf("ZONE 2")
 		desiredUsername, err := reader.ReadString('\n')
 		if err != nil {
 			log.Printf("Error on reading username: '%s'\n", err.Error())
 			user.Connection.Close()
-			return
+			return err
 		}
 
-		log.Printf("ZONE 3")
 		desiredUsername = strings.TrimSpace(desiredUsername)
 
 		if !(len(desiredUsername) >= 4 && len(desiredUsername) <= 15) {
 			sendBroadcast(*user, common.Broadcast{
 				Sender:    "__SERVER__",
 				Content:   "Incorrect. Username must be 4 or longer and 15 or less characters length.",
-				Date:      time.Now().Unix(),
 				Type:      common.ERROR,
 				Printable: true,
 				Code:      common.C_OK,
@@ -80,38 +65,32 @@ func initialSetup(user *User) {
 		}
 
 		user.Username = desiredUsername
-		log.Printf("ZONE 4")
 		break
 	}
-	log.Printf("ZONE 5")
+
 	for {
-		log.Printf("ZONE 6")
 		sendBroadcast(*user, common.Broadcast{
 			Sender:    "__SERVER__",
 			Content:   "Choose a password [>5 chars]: ",
-			Date:      time.Now().Unix(),
-			Type:      common.MESSAGE,
+			Type:      common.TEXT,
 			Printable: true,
 			Code:      common.C_OK,
 		})
-		log.Printf("ZONE 7")
 
 		desiredPassword, err := reader.ReadString('\n')
 		if err != nil {
 			log.Printf("Error on reading username: '%s'\n", err.Error())
 			user.Connection.Close()
-			return
+			return err
 		}
 
-		log.Printf("ZONE 8")
 		desiredPassword = strings.TrimSpace(desiredPassword)
 
 		if len(desiredPassword) < 5 {
 			sendBroadcast(*user, common.Broadcast{
 				Sender:    "__SERVER__",
 				Content:   "Incorrect. Password must be 5 characters length or greater.",
-				Date:      time.Now().Unix(),
-				Type:      common.MESSAGE,
+				Type:      common.TEXT,
 				Printable: true,
 				Code:      common.C_OK,
 			})
@@ -122,7 +101,7 @@ func initialSetup(user *User) {
 		break
 	}
 
-	return
+	return nil
 }
 
 func handleConnection(conn net.Conn) {
@@ -132,8 +111,7 @@ func handleConnection(conn net.Conn) {
 	sendBroadcast(connUser, common.Broadcast{
 		Sender:    "__SERVER__",
 		Content:   "🎉 Connected to the IRC server",
-		Date:      time.Now().Unix(),
-		Type:      common.MESSAGE,
+		Type:      common.TEXT,
 		Printable: true,
 		Code:      common.C_OK,
 	})
@@ -141,11 +119,20 @@ func handleConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	for {
 
-		initialSetup(&connUser)
+		err := initialSetup(&connUser)
+		if err != nil {
+			return
+		}
 
 		UserList = append(UserList, &connUser)
 
-		conn.Write([]byte("Registration successfully completed.\n"))
+		sendBroadcast(connUser, common.Broadcast{
+			Sender:    "__SERVER__",
+			Content:   "Registration successfully completed.",
+			Type:      common.TEXT,
+			Printable: true,
+			Code:      common.C_OK,
+		})
 
 		// Main user input loop
 		for {
@@ -170,7 +157,6 @@ func handleConnection(conn net.Conn) {
 				broadcastMsg := common.Broadcast{
 					Sender:    connUser.Username,
 					Content:   msgContent,
-					Date:      time.Now().Unix(),
 					Type:      common.MESSAGE,
 					Printable: true,
 					Code:      common.C_OK,

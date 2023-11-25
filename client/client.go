@@ -19,15 +19,9 @@ const (
 	DISCONNECT     = 2
 )
 
-type Message struct {
-	Sender  string
-	Content string
-	Date    int
-}
-
 const PROMPT_HEIGHT = 1
 
-var chatHistory []string = make([]string, 0)
+var chatHistory []common.Broadcast = make([]common.Broadcast, 0)
 
 var prompt = ""
 var logMsg = ""
@@ -46,10 +40,29 @@ func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
 	}
 }
 
+func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
+	style := tcell.StyleDefault
+	rendered := fmt.Sprintf("[%s][%d]", broadcast.SentFrom, broadcast.Date)
+
+	switch broadcast.Type {
+	case common.MESSAGE:
+		rendered += fmt.Sprintf("<%s>%s", broadcast.Sender, broadcast.Content)
+		style.Foreground(tcell.ColorWhite)
+	case common.ERROR:
+		rendered += fmt.Sprintf("[ERR]%s", broadcast.Content)
+		style.Foreground(tcell.ColorRed)
+	case common.TEXT:
+		rendered += broadcast.Content
+		style.Foreground(tcell.ColorBlueViolet)
+	}
+	return rendered, style
+}
+
 func drawChat(s tcell.Screen) {
 	emitStr(s, 0, 0, tcell.StyleDefault, fmt.Sprintf("Length chat history: %d", len(chatHistory)))
-	for i, message := range chatHistory {
-		emitStr(s, 0, i+1, tcell.StyleDefault, message)
+	for i, broadcast := range chatHistory {
+		renderedBroadcast, tcellStyle := renderBroadcast(broadcast)
+		emitStr(s, 0, i+1, tcellStyle, renderedBroadcast)
 	}
 }
 
@@ -83,11 +96,8 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 		}
 		logMsg = fmt.Sprintf("Received broadcast from server: %s", receivedBroadcast.Content)
 
-		// if receivedBroadcast.Printable {
-		// 	chatHistory = append(chatHistory, receivedBroadcast.Content)
-		// }
 		if receivedBroadcast.Printable {
-			chatHistory = append(chatHistory, receivedBroadcast.Content)
+			chatHistory = append(chatHistory, receivedBroadcast)
 		}
 
 		drawChat(s)
@@ -96,20 +106,9 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 		drawPrompt(s, prompt)
 		s.Show()
 		s.Clear()
-
-		// n, err := conn.Read(buffer)
-		// if err != nil {
-		// 	fmt.Println("Error reading from server:", err)
-		// 	return
-		// }
-
-		// // Print the server's response
-		// chatHistory = append(chatHistory, string(buffer[:n]))
-
 	}
 }
 
-// This program just prints "Hello, World!".  Press ESC to exit.
 func main() {
 	conn, err := net.Dial("tcp", "192.168.0.70:6969")
 	if err != nil {
@@ -152,16 +151,8 @@ func main() {
 				s.Fini()
 				os.Exit(0)
 			case tcell.KeyEnter:
-				// conn.Write([]byte(fmt.Sprintf("%s\n", prompt)))
+				conn.Write([]byte(fmt.Sprintf("%s\n", prompt)))
 				logMsg = "sent!"
-				testMsg := Message{Content: "Hello, guys!", Sender: "pepito", Date: 69}
-				encoder := gob.NewEncoder(conn)
-
-				err := encoder.Encode(testMsg)
-				if err != nil {
-					logMsg = "error sent!"
-				}
-
 				prompt = ""
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				if len(prompt) > 0 {

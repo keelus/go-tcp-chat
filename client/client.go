@@ -4,8 +4,10 @@ import (
 	"encoding/gob"
 	"fmt"
 	"go-irc/common"
+	"log"
 	"net"
 	"os"
+	"syscall"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gdamore/tcell/v2/encoding"
@@ -24,7 +26,6 @@ const PROMPT_HEIGHT = 1
 var chatHistory []common.Broadcast = make([]common.Broadcast, 0)
 
 var prompt = ""
-var logMsg = ""
 
 func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
 	for _, c := range str {
@@ -71,10 +72,6 @@ func drawPrompt(s tcell.Screen, msg string) {
 	emitStr(s, 0, h-1, tcell.StyleDefault, msg)
 }
 
-func drawLog(s tcell.Screen, logMsg string) {
-	emitStr(s, 0, 30, tcell.StyleDefault, logMsg)
-}
-
 func drawSeparator(s tcell.Screen) {
 	w, h := s.Size()
 	separator := ""
@@ -85,38 +82,61 @@ func drawSeparator(s tcell.Screen) {
 }
 
 func listenToServer(conn net.Conn, s tcell.Screen) {
-	// buffer := make([]byte, 512)
+	log.Printf("Listening to the server...")
 	decoder := gob.NewDecoder(conn)
 	for {
 		var receivedBroadcast common.Broadcast
 		err := decoder.Decode(&receivedBroadcast)
 		if err != nil {
-			logMsg = fmt.Sprintf("Error decoding and receiving: %s", err.Error())
+
+			if netErr, ok := err.(*net.OpError); ok {
+				if syscallErr, ok := netErr.Err.(*os.SyscallError); ok {
+					if errno, ok := syscallErr.Err.(syscall.Errno); ok && (errno == syscall.WSAECONNRESET || errno == syscall.ECONNRESET) {
+						log.Println("Client disconnected")
+						os.Exit(0)
+					}
+				}
+			}
+
+			log.Printf("Error decoding and receiving: %s", err.Error())
 			return
 		}
-		logMsg = fmt.Sprintf("Received broadcast from server: %s", receivedBroadcast.Content)
+		log.Printf("Received broadcast from server: %s", receivedBroadcast.Content)
 
 		if receivedBroadcast.Printable {
 			chatHistory = append(chatHistory, receivedBroadcast)
 		}
 
 		drawChat(s)
-		drawLog(s, logMsg)
 		drawSeparator(s)
 		drawPrompt(s, prompt)
 		s.Show()
 		s.Clear()
 	}
+	// drawChat(s)
+	// drawSeparator(s)
+	// drawPrompt(s, prompt)
+	// s.Show()
+	// s.Clear()
 }
 
 func main() {
+	logFile, err := os.OpenFile("client.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal("Error opening log file:", err)
+	}
+	defer logFile.Close()
+	os.Truncate("client.log", 0)
+	log.SetOutput(logFile)
+
 	conn, err := net.Dial("tcp", "192.168.0.70:6969")
 	if err != nil {
-		fmt.Println("error conneting")
+		log.Println("Error conneting")
 		os.Exit(1)
 	}
 	defer conn.Close()
 
+	log.Println("Connection done")
 	encoding.Register()
 
 	s, e := tcell.NewScreen()
@@ -136,7 +156,6 @@ func main() {
 
 	for {
 		drawChat(s)
-		drawLog(s, logMsg)
 		drawSeparator(s)
 		drawPrompt(s, prompt)
 		s.Show()
@@ -152,7 +171,7 @@ func main() {
 				os.Exit(0)
 			case tcell.KeyEnter:
 				conn.Write([]byte(fmt.Sprintf("%s\n", prompt)))
-				logMsg = "sent!"
+				log.Printf("Message sent")
 				prompt = ""
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				if len(prompt) > 0 {

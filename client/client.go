@@ -47,22 +47,21 @@ func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
 	switch broadcast.Type {
 	case common.MESSAGE:
 		rendered += fmt.Sprintf("<%s>%s", broadcast.Sender, broadcast.Content)
-		style.Foreground(tcell.ColorWhite)
+		style = style.Foreground(tcell.ColorWhite)
 	case common.ERROR:
 		rendered += fmt.Sprintf("[ERR]%s", broadcast.Content)
-		style.Foreground(tcell.ColorRed)
+		style = style.Foreground(tcell.ColorRed).Bold(true)
 	case common.TEXT:
 		rendered += broadcast.Content
-		style.Foreground(tcell.ColorBlueViolet)
+		style = style.Foreground(tcell.ColorBlueViolet)
 	}
 	return rendered, style
 }
 
 func drawChat(s tcell.Screen) {
-	emitStr(s, 0, 0, tcell.StyleDefault, fmt.Sprintf("Length chat history: %d", len(chatHistory)))
 	for i, broadcast := range chatHistory {
 		renderedBroadcast, tcellStyle := renderBroadcast(broadcast)
-		emitStr(s, 0, i+1, tcellStyle, renderedBroadcast)
+		emitStr(s, 0, i, tcellStyle, renderedBroadcast)
 	}
 }
 

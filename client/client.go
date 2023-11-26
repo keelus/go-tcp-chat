@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"syscall"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gdamore/tcell/v2/encoding"
@@ -88,14 +87,11 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 		var receivedBroadcast common.Broadcast
 		err := decoder.Decode(&receivedBroadcast)
 		if err != nil {
-
-			if netErr, ok := err.(*net.OpError); ok {
-				if syscallErr, ok := netErr.Err.(*os.SyscallError); ok {
-					if errno, ok := syscallErr.Err.(syscall.Errno); ok && (errno == syscall.WSAECONNRESET || errno == syscall.ECONNRESET) {
-						log.Println("Client disconnected")
-						os.Exit(0)
-					}
-				}
+			if netErr, ok := err.(*net.OpError); ok && netErr.Temporary() {
+				log.Printf("Temporary error: %s\n", err.Error())
+			} else {
+				log.Printf("Client disconnected\n")
+				os.Exit(0)
 			}
 
 			log.Printf("Error decoding and receiving: %s", err.Error())

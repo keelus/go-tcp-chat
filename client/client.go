@@ -43,14 +43,14 @@ func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
 
 func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
 	style := tcell.StyleDefault
-	rendered := fmt.Sprintf("[%s][%d]", broadcast.SentFrom, broadcast.Date)
+	rendered := fmt.Sprintf("%s ", common.RenderDate(broadcast.Date))
 
 	switch broadcast.Type {
 	case common.MESSAGE:
 		rendered += fmt.Sprintf("<%s>%s", broadcast.Sender, broadcast.Content)
 		style = style.Foreground(tcell.ColorWhite)
 	case common.ERROR:
-		rendered += fmt.Sprintf("[ERR]%s", broadcast.Content)
+		rendered += fmt.Sprintf("[ERROR] %s", broadcast.Content)
 		style = style.Foreground(tcell.ColorRed).Bold(true)
 	case common.TEXT:
 		rendered += broadcast.Content

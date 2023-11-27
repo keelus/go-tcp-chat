@@ -18,7 +18,7 @@ var UserList []*User = make([]*User, 0)
 
 func sendBroadcast(user *User, broadcast common.Broadcast) bool {
 	broadcast.SentFrom = common.L_SERVER
-	broadcast.Date = time.Now().Unix()
+	broadcast.Date = time.Now()
 
 	err := user.Encoder.Encode(broadcast)
 	if err != nil {
@@ -26,6 +26,17 @@ func sendBroadcast(user *User, broadcast common.Broadcast) bool {
 			user.Connection = nil
 			user.Encoder = nil
 			log.Printf("[INFO] The %s' old connection was terminated\n", user.Username)
+
+			if user.Logged {
+				sendUserMessage(common.Broadcast{
+					Sender:    "__SERVER__",
+					Content:   fmt.Sprintf("%s's connection timed out.", user.Username),
+					Type:      common.TEXT,
+					Printable: true,
+					Code:      common.C_OK,
+				})
+			}
+
 			return false
 		}
 
@@ -153,6 +164,13 @@ func handleConnection(conn net.Conn) {
 				Printable: true,
 				Code:      common.C_OK,
 			})
+			sendUserMessage(common.Broadcast{
+				Sender:    "__SERVER__",
+				Content:   fmt.Sprintf("%s has joined the chat.", connUser.Username),
+				Type:      common.TEXT,
+				Printable: true,
+				Code:      common.C_OK,
+			})
 			break
 		case "/register": // /register <username> <password>
 			if len(msgParts) != 3 {
@@ -209,6 +227,14 @@ func handleConnection(conn net.Conn) {
 				Printable: true,
 				Code:      common.C_OK,
 			})
+
+			sendUserMessage(common.Broadcast{
+				Sender:    "__SERVER__",
+				Content:   fmt.Sprintf("%s has joined the chat.", connUser.Username),
+				Type:      common.TEXT,
+				Printable: true,
+				Code:      common.C_OK,
+			})
 			break
 		case "/msg":
 			if !connUser.Logged {
@@ -244,6 +270,14 @@ func handleConnection(conn net.Conn) {
 				sendBroadcast(&connUser, common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("Goodbye %s!", connUser.Username),
+					Type:      common.TEXT,
+					Printable: true,
+					Code:      common.C_OK,
+				})
+
+				sendUserMessage(common.Broadcast{
+					Sender:    "__SERVER__",
+					Content:   fmt.Sprintf("%s has left the chat.", connUser.Username),
 					Type:      common.TEXT,
 					Printable: true,
 					Code:      common.C_OK,

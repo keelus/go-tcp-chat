@@ -1,9 +1,13 @@
 package common
 
+import (
+	"time"
+)
+
 type Broadcast struct {
 	Sender    string
 	Content   string
-	Date      int64
+	Date      time.Time
 	Type      BroadcastType
 	Printable bool
 	Code      ResponseCode
@@ -31,3 +35,7 @@ const (
 	L_CLIENT SendLocation = "C"
 	L_SERVER SendLocation = "S"
 )
+
+func RenderDate(date time.Time) string {
+	return date.Format("15:04:05")
+}

@@ -5,21 +5,18 @@ import (
 	"fmt"
 	"go-tcp-chat/common"
 	"log"
-	"math"
 	"net"
 	"os"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/mattn/go-runewidth"
 )
 
 type Client struct {
 	Connection      net.Conn
 	Decoder         gob.Decoder
-	Screen          tcell.Screen
-	Prompt          string
 	BroadcastBuffer []common.Broadcast
+	UI              ScreenUI
 }
 
 func (client *Client) Connect(ip string, port string) error {
@@ -43,8 +40,8 @@ func (client *Client) InitializeUI() error {
 		return err
 	}
 
-	client.Screen = screen
-	screen.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite))
+	client.UI = ScreenUI{Screen: screen, Prompt: ""}
+	client.UI.Screen.SetStyle(tcell.StyleDefault.Foreground(tcell.ColorWhite))
 	return nil
 }
 
@@ -77,31 +74,31 @@ func (client *Client) Run() {
 		log.Printf("[INFO] Received broadcast from server: %s", receivedBroadcast.Content)
 
 		client.processBroadcast(receivedBroadcast)
-		client.Draw()
+		client.UI.Draw(client.BroadcastBuffer)
 	}
 }
 
 func (client *Client) RunUI() {
 	for {
-		client.Draw()
-		switch ev := client.Screen.PollEvent().(type) {
+		client.UI.Draw(client.BroadcastBuffer)
+		switch ev := client.UI.Screen.PollEvent().(type) {
 		case *tcell.EventResize:
-			client.Screen.Sync()
+			client.UI.Screen.Sync()
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyCtrlC:
-				client.Screen.Fini()
+				client.UI.Screen.Fini()
 				os.Exit(0)
 			case tcell.KeyEnter:
-				client.Connection.Write([]byte(fmt.Sprintf("%s\n", client.Prompt)))
+				client.Connection.Write([]byte(fmt.Sprintf("%s\n", client.UI.Prompt)))
 				log.Printf("[INFO] Message sent")
-				client.Prompt = ""
+				client.UI.Prompt = ""
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
-				if len(client.Prompt) > 0 {
-					client.Prompt = client.Prompt[0 : len(client.Prompt)-1]
+				if len(client.UI.Prompt) > 0 {
+					client.UI.Prompt = client.UI.Prompt[0 : len(client.UI.Prompt)-1]
 				}
 			case tcell.KeyRune:
-				client.Prompt += string(ev.Rune())
+				client.UI.Prompt += string(ev.Rune())
 			}
 		}
 	}
@@ -131,64 +128,10 @@ func (client *Client) processBroadcast(broadcast common.Broadcast) {
 					}
 					client.processBroadcast(localBroadcast)
 					client.Connection.Close()
-					client.Draw()
+					client.UI.Draw(client.BroadcastBuffer)
 					os.Exit(-1)
 				}
 			}
 		}
 	}
-}
-
-func (client *Client) Draw() {
-	client.drawChat()
-	client.drawSeparator()
-	client.drawPrompt(client.Prompt)
-	client.Screen.Show()
-	client.Screen.Clear()
-}
-
-func (client *Client) EmitStr(x, y int, style tcell.Style, str string) {
-	for _, c := range str {
-		var comb []rune
-		w := runewidth.RuneWidth(c)
-		if w == 0 {
-			comb = []rune{c}
-			c = ' '
-			w = 1
-		}
-		client.Screen.SetContent(x, y, c, comb, style)
-		x += w
-	}
-}
-
-func (client *Client) drawChat() {
-	_, maxEntries := client.Screen.Size()
-	maxEntries -= 2
-
-	entriesFrom := int(math.Max(0, float64(len(client.BroadcastBuffer)-maxEntries)))
-	entriesTo := len(client.BroadcastBuffer)
-
-	entriesDrawn := 0
-	for i := entriesFrom; i < entriesTo; i++ {
-		if entriesDrawn == maxEntries {
-			break
-		}
-		renderedBroadcast, tcellStyle := client.BroadcastBuffer[i].RenderBroadcast()
-		client.EmitStr(0, entriesDrawn, tcellStyle, renderedBroadcast)
-		entriesDrawn += 1
-	}
-}
-
-func (client *Client) drawPrompt(msg string) {
-	_, h := client.Screen.Size()
-	client.EmitStr(0, h-1, tcell.StyleDefault, msg)
-}
-
-func (client *Client) drawSeparator() {
-	w, h := client.Screen.Size()
-	separator := ""
-	for i := 0; i < w; i++ {
-		separator = separator + "="
-	}
-	client.EmitStr(0, h-2, tcell.StyleDefault, separator)
 }

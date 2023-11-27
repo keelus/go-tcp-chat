@@ -7,7 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-const TCP_CHAT_VERSION = "v0.1.1"
+const TCP_CHAT_VERSION = "v0.2.0"
 
 type Broadcast struct {
 	Sender    string

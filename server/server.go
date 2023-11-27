@@ -31,7 +31,7 @@ func sendBroadcast(user *User, broadcast common.Broadcast) bool {
 				sendUserMessage(common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("%s's connection timed out.", user.Username),
-					Type:      common.TEXT,
+					Type:      common.ACTIVITY,
 					Printable: true,
 					Code:      common.C_OK,
 				})
@@ -167,7 +167,7 @@ func handleConnection(conn net.Conn) {
 			sendUserMessage(common.Broadcast{
 				Sender:    "__SERVER__",
 				Content:   fmt.Sprintf("%s has joined the chat.", connUser.Username),
-				Type:      common.TEXT,
+				Type:      common.ACTIVITY,
 				Printable: true,
 				Code:      common.C_OK,
 			})
@@ -231,7 +231,7 @@ func handleConnection(conn net.Conn) {
 			sendUserMessage(common.Broadcast{
 				Sender:    "__SERVER__",
 				Content:   fmt.Sprintf("%s has joined the chat.", connUser.Username),
-				Type:      common.TEXT,
+				Type:      common.ACTIVITY,
 				Printable: true,
 				Code:      common.C_OK,
 			})
@@ -278,7 +278,7 @@ func handleConnection(conn net.Conn) {
 				sendUserMessage(common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("%s has left the chat.", connUser.Username),
-					Type:      common.TEXT,
+					Type:      common.ACTIVITY,
 					Printable: true,
 					Code:      common.C_OK,
 				})

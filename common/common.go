@@ -17,9 +17,10 @@ type Broadcast struct {
 type BroadcastType int
 
 const (
-	TEXT    BroadcastType = 0
-	ERROR   BroadcastType = 1
-	MESSAGE BroadcastType = 2
+	TEXT     BroadcastType = 0
+	ERROR    BroadcastType = 1
+	MESSAGE  BroadcastType = 2
+	ACTIVITY BroadcastType = 3
 )
 
 type ResponseCode int

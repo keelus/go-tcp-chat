@@ -54,7 +54,10 @@ func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
 		style = style.Foreground(tcell.ColorRed).Bold(true)
 	case common.TEXT:
 		rendered += broadcast.Content
-		style = style.Foreground(tcell.ColorBlueViolet)
+		style = style.Foreground(tcell.Color102)
+	case common.ACTIVITY:
+		rendered += broadcast.Content
+		style = style.Foreground(tcell.Color100)
 	}
 	return rendered, style
 }

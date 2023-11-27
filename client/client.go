@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"go-irc/common"
+	"go-tcp-chat/common"
 	"log"
 	"math"
 	"net"
@@ -17,7 +17,7 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-const CLIENT_VERSION = common.GO_IRC_VERSION
+const CLIENT_VERSION = common.TCP_CHAT_VERSION
 
 const (
 	LOGIN      int = 0

@@ -5,14 +5,14 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"go-irc/common"
+	"go-tcp-chat/common"
 	"log"
 	"net"
 	"strings"
 	"time"
 )
 
-const SERVER_VERSION = common.GO_IRC_VERSION
+const SERVER_VERSION = common.TCP_CHAT_VERSION
 
 var UserList []*User = make([]*User, 0)
 

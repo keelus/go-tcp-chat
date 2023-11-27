@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-const GO_IRC_VERSION = "v0.1.1"
+const TCP_CHAT_VERSION = "v0.1.1"
 
 type Broadcast struct {
 	Sender    string

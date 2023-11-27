@@ -263,15 +263,18 @@ func handleConnection(conn net.Conn) {
 
 			break
 		case "/quit":
+			sendBroadcast(&connUser, common.Broadcast{
+				Sender:    "__SERVER__",
+				Content:   "Goodbye!",
+				Type:      common.TEXT,
+				Printable: true,
+				Code:      common.C_OK,
+			})
+
 			if connUser.Logged {
 				log.Printf("[INFO] User %s[%s] disconnected.\n", connUser.Username, connUser.Connection.RemoteAddr())
-
-				for _, user := range UserList {
-					if user.Username == connUser.Username {
-						user.Connection = nil
-						user.Encoder = nil
-					}
-				}
+				connUser.Connection = nil
+				connUser.Encoder = nil
 
 				sendGlobalBroadcast(common.Broadcast{
 					Sender:    "__SERVER__",
@@ -283,14 +286,6 @@ func handleConnection(conn net.Conn) {
 			} else {
 				log.Printf("[INFO] A non logged user[%s] disconnected.\n", connUser.Connection.RemoteAddr())
 			}
-
-			sendBroadcast(&connUser, common.Broadcast{
-				Sender:    "__SERVER__",
-				Content:   "Goodbye!",
-				Type:      common.TEXT,
-				Printable: true,
-				Code:      common.C_OK,
-			})
 
 			return
 		case "/help":

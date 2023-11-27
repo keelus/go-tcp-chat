@@ -26,7 +26,7 @@ func sendBroadcast(user *User, broadcast common.Broadcast) bool {
 			log.Printf("[INFO] The %s' old connection was terminated\n", user.Username)
 
 			if user.Logged {
-				sendUserMessage(common.Broadcast{
+				sendGlobalBroadcast(common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("%s's connection timed out.", user.Username),
 					Type:      common.ACTIVITY,
@@ -45,7 +45,7 @@ func sendBroadcast(user *User, broadcast common.Broadcast) bool {
 	return true
 }
 
-func sendUserMessage(message common.Broadcast) {
+func sendGlobalBroadcast(message common.Broadcast) {
 	for _, registeredUser := range UserList {
 		if registeredUser.Connection != nil {
 			sendBroadcast(registeredUser, message)
@@ -162,7 +162,7 @@ func handleConnection(conn net.Conn) {
 				Printable: true,
 				Code:      common.C_OK,
 			})
-			sendUserMessage(common.Broadcast{
+			sendGlobalBroadcast(common.Broadcast{
 				Sender:    "__SERVER__",
 				Content:   fmt.Sprintf("%s has joined the chat.", connUser.Username),
 				Type:      common.ACTIVITY,
@@ -226,7 +226,7 @@ func handleConnection(conn net.Conn) {
 				Code:      common.C_OK,
 			})
 
-			sendUserMessage(common.Broadcast{
+			sendGlobalBroadcast(common.Broadcast{
 				Sender:    "__SERVER__",
 				Content:   fmt.Sprintf("%s has joined the chat.", connUser.Username),
 				Type:      common.ACTIVITY,
@@ -259,19 +259,12 @@ func handleConnection(conn net.Conn) {
 				Code:      common.C_OK,
 			}
 
-			go sendUserMessage(broadcastMsg)
+			go sendGlobalBroadcast(broadcastMsg)
 
 			break
 		case "/quit":
 			if connUser.Logged {
 				log.Printf("[INFO] User %s[%s] disconnected.\n", connUser.Username, connUser.Connection.RemoteAddr())
-				sendBroadcast(&connUser, common.Broadcast{
-					Sender:    "__SERVER__",
-					Content:   fmt.Sprintf("Goodbye %s!", connUser.Username),
-					Type:      common.TEXT,
-					Printable: true,
-					Code:      common.C_OK,
-				})
 
 				for _, user := range UserList {
 					if user.Username == connUser.Username {
@@ -280,7 +273,7 @@ func handleConnection(conn net.Conn) {
 					}
 				}
 
-				sendUserMessage(common.Broadcast{
+				sendGlobalBroadcast(common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("%s has left the chat.", connUser.Username),
 					Type:      common.ACTIVITY,
@@ -289,14 +282,15 @@ func handleConnection(conn net.Conn) {
 				})
 			} else {
 				log.Printf("[INFO] A non logged user[%s] disconnected.\n", connUser.Connection.RemoteAddr())
-				sendBroadcast(&connUser, common.Broadcast{
-					Sender:    "__SERVER__",
-					Content:   "Goodbye!",
-					Type:      common.TEXT,
-					Printable: true,
-					Code:      common.C_OK,
-				})
 			}
+
+			sendBroadcast(&connUser, common.Broadcast{
+				Sender:    "__SERVER__",
+				Content:   "Goodbye!",
+				Type:      common.TEXT,
+				Printable: true,
+				Code:      common.C_OK,
+			})
 
 			return
 		case "/help":

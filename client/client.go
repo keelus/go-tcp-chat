@@ -161,27 +161,6 @@ func (client *Client) EmitStr(x, y int, style tcell.Style, str string) {
 	}
 }
 
-func (client *Client) RenderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
-	style := tcell.StyleDefault
-	rendered := fmt.Sprintf("%s ", common.RenderDate(broadcast.Date))
-
-	switch broadcast.Type {
-	case common.MESSAGE:
-		rendered += fmt.Sprintf("<%s>%s", broadcast.Sender, broadcast.Content)
-		style = style.Foreground(tcell.ColorWhite)
-	case common.ERROR:
-		rendered += fmt.Sprintf("[ERROR] %s", broadcast.Content)
-		style = style.Foreground(tcell.ColorRed).Bold(true)
-	case common.TEXT:
-		rendered += broadcast.Content
-		style = style.Foreground(tcell.Color102)
-	case common.ACTIVITY:
-		rendered += broadcast.Content
-		style = style.Foreground(tcell.Color100)
-	}
-	return rendered, style
-}
-
 func (client *Client) drawChat() {
 	_, maxEntries := client.Screen.Size()
 	maxEntries -= 2
@@ -194,7 +173,7 @@ func (client *Client) drawChat() {
 		if entriesDrawn == maxEntries {
 			break
 		}
-		renderedBroadcast, tcellStyle := client.RenderBroadcast(client.BroadcastBuffer[i])
+		renderedBroadcast, tcellStyle := client.BroadcastBuffer[i].RenderBroadcast()
 		client.EmitStr(0, entriesDrawn, tcellStyle, renderedBroadcast)
 		entriesDrawn += 1
 	}

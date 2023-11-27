@@ -1,7 +1,10 @@
 package common
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 const TCP_CHAT_VERSION = "v0.1.1"
@@ -25,6 +28,27 @@ const (
 	ACTIVITY BroadcastType = 3
 	VERSION  BroadcastType = 4
 )
+
+func (broadcast *Broadcast) RenderBroadcast() (string, tcell.Style) {
+	style := tcell.StyleDefault
+	rendered := fmt.Sprintf("%s ", RenderDate(broadcast.Date))
+
+	switch broadcast.Type {
+	case MESSAGE:
+		rendered += fmt.Sprintf("<%s>%s", broadcast.Sender, broadcast.Content)
+		style = style.Foreground(tcell.ColorWhite)
+	case ERROR:
+		rendered += fmt.Sprintf("[ERROR] %s", broadcast.Content)
+		style = style.Foreground(tcell.ColorRed).Bold(true)
+	case TEXT:
+		rendered += broadcast.Content
+		style = style.Foreground(tcell.Color102)
+	case ACTIVITY:
+		rendered += broadcast.Content
+		style = style.Foreground(tcell.Color100)
+	}
+	return rendered, style
+}
 
 type ResponseCode int
 

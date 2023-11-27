@@ -29,9 +29,11 @@ const PROMPT_HEIGHT = 1
 
 var chatHistory []common.Broadcast = make([]common.Broadcast, 0)
 
+var screen tcell.Screen
+
 var prompt = ""
 
-func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
+func emitStr(x, y int, style tcell.Style, str string) {
 	for _, c := range str {
 		var comb []rune
 		w := runewidth.RuneWidth(c)
@@ -40,12 +42,12 @@ func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
 			c = ' '
 			w = 1
 		}
-		s.SetContent(x, y, c, comb, style)
+		screen.SetContent(x, y, c, comb, style)
 		x += w
 	}
 }
 
-func processBroadcast(conn net.Conn, s tcell.Screen, broadcast common.Broadcast) {
+func processBroadcast(conn net.Conn, broadcast common.Broadcast) {
 	if broadcast.Printable {
 		msgLines := strings.Split(strings.TrimSpace(broadcast.Content), "\n")
 		for _, line := range msgLines {
@@ -67,9 +69,9 @@ func processBroadcast(conn net.Conn, s tcell.Screen, broadcast common.Broadcast)
 						Printable: true,
 						Code:      common.C_ERROR,
 					}
-					processBroadcast(conn, s, localBroadcast)
+					processBroadcast(conn, localBroadcast)
 					conn.Close()
-					drawScreen(s)
+					drawScreen()
 					os.Exit(-1)
 				}
 			}
@@ -99,8 +101,8 @@ func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
 	return rendered, style
 }
 
-func drawChat(s tcell.Screen) {
-	_, maxEntries := s.Size()
+func drawChat() {
+	_, maxEntries := screen.Size()
 	maxEntries -= 2
 
 	entriesFrom := int(math.Max(0, float64(len(chatHistory)-maxEntries)))
@@ -112,34 +114,34 @@ func drawChat(s tcell.Screen) {
 			break
 		}
 		renderedBroadcast, tcellStyle := renderBroadcast(chatHistory[i])
-		emitStr(s, 0, entriesDrawn, tcellStyle, renderedBroadcast)
+		emitStr(0, entriesDrawn, tcellStyle, renderedBroadcast)
 		entriesDrawn += 1
 	}
 }
 
-func drawPrompt(s tcell.Screen, msg string) {
-	_, h := s.Size()
-	emitStr(s, 0, h-1, tcell.StyleDefault, msg)
+func drawPrompt(msg string) {
+	_, h := screen.Size()
+	emitStr(0, h-1, tcell.StyleDefault, msg)
 }
 
-func drawSeparator(s tcell.Screen) {
-	w, h := s.Size()
+func drawSeparator() {
+	w, h := screen.Size()
 	separator := ""
 	for i := 0; i < w; i++ {
 		separator = separator + "="
 	}
-	emitStr(s, 0, h-2, tcell.StyleDefault, separator)
+	emitStr(0, h-2, tcell.StyleDefault, separator)
 }
 
-func drawScreen(s tcell.Screen) {
-	drawChat(s)
-	drawSeparator(s)
-	drawPrompt(s, prompt)
-	s.Show()
-	s.Clear()
+func drawScreen() {
+	drawChat()
+	drawSeparator()
+	drawPrompt(prompt)
+	screen.Show()
+	screen.Clear()
 }
 
-func listenToServer(conn net.Conn, s tcell.Screen) {
+func listenToServer(conn net.Conn) {
 	decoder := gob.NewDecoder(conn)
 
 	for {
@@ -158,9 +160,9 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 		}
 		log.Printf("[INFO] Received broadcast from server: %s", receivedBroadcast.Content)
 
-		processBroadcast(conn, s, receivedBroadcast)
+		processBroadcast(conn, receivedBroadcast)
 
-		drawScreen(s)
+		drawScreen()
 	}
 }
 
@@ -187,20 +189,20 @@ func main() {
 	log.Printf("[INFO] Connection to %s:%s stablished.\n", *argIp, *argPort)
 	encoding.Register()
 
-	s, e := tcell.NewScreen()
-	if e != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", e)
+	screen, err = tcell.NewScreen()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-	if e := s.Init(); e != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", e)
+	if err = screen.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
 	defStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
-	s.SetStyle(defStyle)
+	screen.SetStyle(defStyle)
 
-	processBroadcast(conn, s, common.Broadcast{
+	processBroadcast(conn, common.Broadcast{
 		Sender:    "__CLIENT__",
 		Content:   fmt.Sprintf("Running client on version %s", CLIENT_VERSION),
 		Type:      common.TEXT,
@@ -208,19 +210,19 @@ func main() {
 		Code:      common.C_OK,
 	})
 	log.Printf("[INFO] Listening to server(%s:%s) broadcasts...", *argIp, *argPort)
-	go listenToServer(conn, s)
+	go listenToServer(conn)
 
 	for {
-		drawScreen(s)
+		drawScreen()
 		log.Printf("Drawn")
 
-		switch ev := s.PollEvent().(type) {
+		switch ev := screen.PollEvent().(type) {
 		case *tcell.EventResize:
-			s.Sync()
+			screen.Sync()
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyCtrlC:
-				s.Fini()
+				screen.Fini()
 				os.Exit(0)
 			case tcell.KeyEnter:
 				conn.Write([]byte(fmt.Sprintf("%s\n", prompt)))

@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const PORT = "6969"
-
 var UserList []*User = make([]*User, 0)
 
 func sendBroadcast(user *User, broadcast common.Broadcast) bool {
@@ -67,7 +65,7 @@ func handleConnection(conn net.Conn) {
 
 	sendBroadcast(&connUser, common.Broadcast{
 		Sender:    "__SERVER__",
-		Content:   "🎉 Connected to the IRC server",
+		Content:   "Connection stablished.",
 		Type:      common.TEXT,
 		Printable: true,
 		Code:      common.C_OK,
@@ -329,7 +327,7 @@ func main() {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%s", *argIp, *argPort))
 	if err != nil {
-		log.Fatalf("[ERROR] An error happened while listening to the port %s. Reason:'%s'\n", PORT, err.Error())
+		log.Fatalf("[ERROR] An error happened while listening to the port %s. Reason:'%s'\n", *argPort, err.Error())
 	}
 	defer listener.Close()
 

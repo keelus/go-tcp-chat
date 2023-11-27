@@ -119,7 +119,6 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 			for _, line := range msgLines {
 				tempBroadcast := receivedBroadcast
 				tempBroadcast.Content = line
-				log.Printf("b cnt: '%s'", tempBroadcast.Content)
 				chatHistory = append(chatHistory, tempBroadcast)
 			}
 		}

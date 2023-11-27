@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+const SERVER_VERSION = common.GO_IRC_VERSION
+
 var UserList []*User = make([]*User, 0)
 
 func sendBroadcast(user *User, broadcast common.Broadcast) bool {
@@ -65,11 +67,21 @@ func handleConnection(conn net.Conn) {
 
 	sendBroadcast(&connUser, common.Broadcast{
 		Sender:    "__SERVER__",
-		Content:   "Connection stablished.",
+		Content:   fmt.Sprintf("Connection stablished. Server running on version %s", SERVER_VERSION),
 		Type:      common.TEXT,
 		Printable: true,
 		Code:      common.C_OK,
 	})
+
+	sendBroadcast(&connUser, common.Broadcast{
+		Sender:    "__SERVER__",
+		Content:   SERVER_VERSION,
+		Type:      common.VERSION,
+		Printable: false,
+		Code:      common.C_OK,
+	})
+
+	// Content:   fmt.Sprintf("You need to use the same version as the server. \n   Server version:%s\n   Your (client) version: %s", SERVER_VERSION, client_version),
 
 	sendBroadcast(&connUser, common.Broadcast{
 		Sender:    "__SERVER__",

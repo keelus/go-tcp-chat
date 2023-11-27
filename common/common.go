@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+const GO_IRC_VERSION = "v0.1.0"
+
 type Broadcast struct {
 	Sender    string
 	Content   string
@@ -21,6 +23,7 @@ const (
 	ERROR    BroadcastType = 1
 	MESSAGE  BroadcastType = 2
 	ACTIVITY BroadcastType = 3
+	VERSION  BroadcastType = 4
 )
 
 type ResponseCode int

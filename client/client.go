@@ -17,6 +17,8 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
+const CLIENT_VERSION = common.GO_IRC_VERSION
+
 const (
 	LOGIN      int = 0
 	MESSAGE        = 1
@@ -98,6 +100,7 @@ func drawSeparator(s tcell.Screen) {
 
 func listenToServer(conn net.Conn, s tcell.Screen) {
 	decoder := gob.NewDecoder(conn)
+
 	for {
 		var receivedBroadcast common.Broadcast
 		err := decoder.Decode(&receivedBroadcast)
@@ -120,6 +123,33 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 				tempBroadcast := receivedBroadcast
 				tempBroadcast.Content = line
 				chatHistory = append(chatHistory, tempBroadcast)
+			}
+		} else {
+			if receivedBroadcast.Type == common.VERSION {
+				switch receivedBroadcast.Type {
+				case common.VERSION:
+					server_version := strings.TrimSpace(receivedBroadcast.Content)
+					if server_version != CLIENT_VERSION {
+						log.Printf("NO SAME VERSION ERR")
+						localBroadcast := common.Broadcast{
+							Sender:    "__CLIENT__",
+							Content:   fmt.Sprintf("You need to use the same version as the server. \n   Server version:%s\n   Your (client) version: %s", server_version, CLIENT_VERSION),
+							Type:      common.ERROR,
+							Printable: true,
+							Code:      common.C_ERROR,
+						}
+						chatHistory = append(chatHistory, localBroadcast)
+						conn.Close()
+						// TODO: Do a function that does all of visual updating
+						// TODO: Do a function that processes incoming broadcasts (for line splitting, etc)
+						drawChat(s)
+						drawSeparator(s)
+						drawPrompt(s, prompt)
+						s.Show()
+						s.Clear()
+						os.Exit(-1)
+					}
+				}
 			}
 		}
 
@@ -172,6 +202,13 @@ func main() {
 	defStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	s.SetStyle(defStyle)
 
+	chatHistory = append(chatHistory, common.Broadcast{
+		Sender:    "__CLIENT__",
+		Content:   fmt.Sprintf("Running client on version %s", CLIENT_VERSION),
+		Type:      common.TEXT,
+		Printable: true,
+		Code:      common.C_OK,
+	})
 	log.Printf("[INFO] Listening to server(%s:%s) broadcasts...", *argIp, *argPort)
 	go listenToServer(conn, s)
 

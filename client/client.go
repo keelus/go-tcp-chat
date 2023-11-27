@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"flag"
 	"fmt"
 	"go-irc/common"
 	"log"
@@ -80,23 +81,22 @@ func drawSeparator(s tcell.Screen) {
 }
 
 func listenToServer(conn net.Conn, s tcell.Screen) {
-	log.Printf("Listening to the server...")
 	decoder := gob.NewDecoder(conn)
 	for {
 		var receivedBroadcast common.Broadcast
 		err := decoder.Decode(&receivedBroadcast)
 		if err != nil {
 			if netErr, ok := err.(*net.OpError); ok && netErr.Temporary() {
-				log.Printf("Temporary error: %s\n", err.Error())
+				log.Printf("[ERROR] Temporary error: %s\n", err.Error())
 			} else {
-				log.Printf("Client disconnected\n")
+				log.Printf("[INFO] Client disconnected\n")
 				os.Exit(0)
 			}
 
-			log.Printf("Error decoding and receiving: %s", err.Error())
+			log.Printf("[ERROR] Error decoding and receiving: %s", err.Error())
 			return
 		}
-		log.Printf("Received broadcast from server: %s", receivedBroadcast.Content)
+		log.Printf("[INFO] Received broadcast from server: %s", receivedBroadcast.Content)
 
 		if receivedBroadcast.Printable {
 			chatHistory = append(chatHistory, receivedBroadcast)
@@ -116,22 +116,26 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 }
 
 func main() {
+	argIp := flag.String("ip", "127.0.0.1", "The local IP")
+	argPort := flag.String("port", "6969", "The port")
+	flag.Parse()
+
 	logFile, err := os.OpenFile("client.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatal("Error opening log file:", err)
+		log.Fatal("[ERROR] Error opening log file:", err)
 	}
 	defer logFile.Close()
 	os.Truncate("client.log", 0)
 	log.SetOutput(logFile)
 
-	conn, err := net.Dial("tcp", "192.168.0.70:6969")
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", *argIp, *argPort))
 	if err != nil {
-		log.Println("Error conneting")
+		log.Printf("[ERROR] Connection to %s:%s could not be stablished.\n", *argIp, *argPort)
 		os.Exit(1)
 	}
 	defer conn.Close()
 
-	log.Println("Connection done")
+	log.Printf("[INFO] Connection to %s:%s stablished.\n", *argIp, *argPort)
 	encoding.Register()
 
 	s, e := tcell.NewScreen()
@@ -147,6 +151,7 @@ func main() {
 	defStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	s.SetStyle(defStyle)
 
+	log.Printf("[INFO] Listening to server(%s:%s) broadcasts...", *argIp, *argPort)
 	go listenToServer(conn, s)
 
 	for {
@@ -166,7 +171,7 @@ func main() {
 				os.Exit(0)
 			case tcell.KeyEnter:
 				conn.Write([]byte(fmt.Sprintf("%s\n", prompt)))
-				log.Printf("Message sent")
+				log.Printf("[INFO] Message sent")
 				prompt = ""
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				if len(prompt) > 0 {

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/gob"
+	"flag"
 	"fmt"
 	"go-irc/common"
 	"log"
@@ -24,11 +25,11 @@ func sendBroadcast(user *User, broadcast common.Broadcast) bool {
 		if netErr, ok := err.(*net.OpError); ok && !netErr.Temporary() { // Client's connection was closed but status was not updated (client exited without /quit)
 			user.Connection = nil
 			user.Encoder = nil
-			log.Printf("%s' old connection was terminated\n", user.Username)
+			log.Printf("[INFO] The %s' old connection was terminated\n", user.Username)
 			return false
 		}
 
-		log.Printf("Error sending a broadcast\n\tAddress: %s\n\tReason: %s\n", user.Connection.RemoteAddr(), err.Error())
+		log.Printf("[ERROR] Error sending a broadcast\n\tAddress: %s\n\tReason: %s\n", user.Connection.RemoteAddr(), err.Error())
 		return false
 	}
 
@@ -74,7 +75,7 @@ func handleConnection(conn net.Conn) {
 	for {
 		msg, err := reader.ReadString('\n')
 		if err != nil {
-			log.Printf("Error reading message: '%s'\n", err.Error())
+			log.Printf("[ERROR] Error reading message: '%s'\n", err.Error())
 			conn.Close()
 			return
 		}
@@ -221,7 +222,7 @@ func handleConnection(conn net.Conn) {
 				continue
 			}
 
-			log.Printf("%s sent a message\n", connUser.Username)
+			log.Printf("[INFO] %s broadcasted.\n", connUser.Username)
 
 			msgContent := strings.Replace(msg, "/msg", "", 1)
 			msgContent = fmt.Sprintf("%s\n", msgContent)
@@ -239,7 +240,7 @@ func handleConnection(conn net.Conn) {
 			break
 		case "/quit":
 			if connUser.Logged {
-				log.Printf("%s disconnected\n", connUser.Username)
+				log.Printf("[INFO] User %s[%s] disconnected.\n", connUser.Username, connUser.Connection.RemoteAddr())
 				sendBroadcast(&connUser, common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("Goodbye %s!", connUser.Username),
@@ -255,7 +256,7 @@ func handleConnection(conn net.Conn) {
 					}
 				}
 			} else {
-				log.Printf("%s disconnected\n", connUser.Connection.RemoteAddr())
+				log.Printf("[INFO] A non logged user[%s] disconnected.\n", connUser.Connection.RemoteAddr())
 				sendBroadcast(&connUser, common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   "Goodbye!",
@@ -288,20 +289,24 @@ func handleConnection(conn net.Conn) {
 }
 
 func main() {
-	listener, err := net.Listen("tcp", fmt.Sprintf("192.168.0.70:%s", PORT))
+	argIp := flag.String("ip", "127.0.0.1", "The local IP")
+	argPort := flag.String("port", "6969", "The port")
+	flag.Parse()
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%s", *argIp, *argPort))
 	if err != nil {
-		log.Fatalf("An error happened while listening to the port %s\n", PORT)
+		log.Fatalf("[ERROR] An error happened while listening to the port %s. Reason:'%s'\n", PORT, err.Error())
 	}
 	defer listener.Close()
 
-	log.Printf("Listening to the port %s...\n", PORT)
+	log.Printf("[INFO] Listening TCP in %s:%s...\n", *argIp, *argPort)
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Printf("There was an error handling the connection.\n")
+			log.Printf("[ERROR] There was an error handling the connection from %s.\n", conn.RemoteAddr())
 		} else {
-			log.Printf("Client [%s] connected.", conn.RemoteAddr())
+			log.Printf("[INFO] Client [%s] connected.", conn.RemoteAddr())
 			go handleConnection(conn)
 		}
 	}

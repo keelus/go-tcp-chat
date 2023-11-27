@@ -292,7 +292,7 @@ func handleConnection(conn net.Conn) {
 			sendBroadcast(&connUser, common.Broadcast{
 				Sender: "__SERVER__",
 				// Content:   fmt.Sprintf("Available commands:\n\t/login <username> <password>\n\t/register <username> <password>\n\t/msg <message content>\n\t/quit\n\t/help"),
-				Content:   "Available commands: /login, /register, /msg, /quit, /help",
+				Content:   "Available commands:\n   /login <username> <password> - Use it to log in in your account.\n   /register <username> <password> - Use it to register a new account.\n   /msg <some text> - Send something to the others!\n   /quit - Log out from the chat.\n   /help - Show available commands",
 				Type:      common.TEXT,
 				Printable: true,
 				Code:      common.C_OK,

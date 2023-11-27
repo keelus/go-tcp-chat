@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"go-irc/common"
 	"log"
+	"math"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/gdamore/tcell/v2/encoding"
@@ -63,9 +65,20 @@ func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
 }
 
 func drawChat(s tcell.Screen) {
-	for i, broadcast := range chatHistory {
-		renderedBroadcast, tcellStyle := renderBroadcast(broadcast)
-		emitStr(s, 0, i, tcellStyle, renderedBroadcast)
+	_, maxEntries := s.Size()
+	maxEntries -= 2
+
+	entriesFrom := int(math.Max(0, float64(len(chatHistory)-maxEntries)))
+	entriesTo := len(chatHistory)
+
+	entriesDrawn := 0
+	for i := entriesFrom; i < entriesTo; i++ {
+		if entriesDrawn == maxEntries {
+			break
+		}
+		renderedBroadcast, tcellStyle := renderBroadcast(chatHistory[i])
+		emitStr(s, 0, entriesDrawn, tcellStyle, renderedBroadcast)
+		entriesDrawn += 1
 	}
 }
 
@@ -102,7 +115,13 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 		log.Printf("[INFO] Received broadcast from server: %s", receivedBroadcast.Content)
 
 		if receivedBroadcast.Printable {
-			chatHistory = append(chatHistory, receivedBroadcast)
+			msgLines := strings.Split(strings.TrimSpace(receivedBroadcast.Content), "\n")
+			for _, line := range msgLines {
+				tempBroadcast := receivedBroadcast
+				tempBroadcast.Content = line
+				log.Printf("b cnt: '%s'", tempBroadcast.Content)
+				chatHistory = append(chatHistory, tempBroadcast)
+			}
 		}
 
 		drawChat(s)

@@ -159,7 +159,7 @@ func handleConnection(conn net.Conn) {
 
 			sendBroadcast(&connUser, common.Broadcast{
 				Sender:    "__SERVER__",
-				Content:   fmt.Sprintf("Logged as <%s>. Welcome!", username),
+				Content:   fmt.Sprintf("Logged as %s. Welcome!", username),
 				Type:      common.TEXT,
 				Printable: true,
 				Code:      common.C_OK,
@@ -222,7 +222,7 @@ func handleConnection(conn net.Conn) {
 
 			sendBroadcast(&connUser, common.Broadcast{
 				Sender:    "__SERVER__",
-				Content:   fmt.Sprintf("Registered and logged as <%s>. Welcome!", username),
+				Content:   fmt.Sprintf("Registered and logged as %s. Welcome!", username),
 				Type:      common.TEXT,
 				Printable: true,
 				Code:      common.C_OK,
@@ -275,6 +275,13 @@ func handleConnection(conn net.Conn) {
 					Code:      common.C_OK,
 				})
 
+				for _, user := range UserList {
+					if user.Username == connUser.Username {
+						user.Connection = nil
+						user.Encoder = nil
+					}
+				}
+
 				sendUserMessage(common.Broadcast{
 					Sender:    "__SERVER__",
 					Content:   fmt.Sprintf("%s has left the chat.", connUser.Username),
@@ -282,13 +289,6 @@ func handleConnection(conn net.Conn) {
 					Printable: true,
 					Code:      common.C_OK,
 				})
-
-				for _, user := range UserList {
-					if user.Username == connUser.Username {
-						user.Connection = nil
-						user.Encoder = nil
-					}
-				}
 			} else {
 				log.Printf("[INFO] A non logged user[%s] disconnected.\n", connUser.Connection.RemoteAddr())
 				sendBroadcast(&connUser, common.Broadcast{

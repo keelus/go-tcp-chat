@@ -45,6 +45,39 @@ func emitStr(s tcell.Screen, x, y int, style tcell.Style, str string) {
 	}
 }
 
+func processBroadcast(conn net.Conn, s tcell.Screen, broadcast common.Broadcast) {
+	if broadcast.Printable {
+		msgLines := strings.Split(strings.TrimSpace(broadcast.Content), "\n")
+		for _, line := range msgLines {
+			splittedBroadcastLine := broadcast
+			splittedBroadcastLine.Content = line
+			chatHistory = append(chatHistory, splittedBroadcastLine)
+		}
+	} else {
+		if broadcast.Type == common.VERSION {
+			switch broadcast.Type {
+			case common.VERSION:
+				server_version := strings.TrimSpace(broadcast.Content)
+				if server_version != CLIENT_VERSION {
+					log.Printf("NO SAME VERSION ERR")
+					localBroadcast := common.Broadcast{
+						Sender:    "__CLIENT__",
+						Content:   fmt.Sprintf("You need to use the same version as the server. \n   Server version:%s\n   Your (client) version: %s", server_version, CLIENT_VERSION),
+						Type:      common.ERROR,
+						Printable: true,
+						Code:      common.C_ERROR,
+					}
+					processBroadcast(conn, s, localBroadcast)
+					conn.Close()
+					drawScreen(s)
+					os.Exit(-1)
+				}
+			}
+		}
+	}
+
+}
+
 func renderBroadcast(broadcast common.Broadcast) (string, tcell.Style) {
 	style := tcell.StyleDefault
 	rendered := fmt.Sprintf("%s ", common.RenderDate(broadcast.Date))
@@ -98,6 +131,14 @@ func drawSeparator(s tcell.Screen) {
 	emitStr(s, 0, h-2, tcell.StyleDefault, separator)
 }
 
+func drawScreen(s tcell.Screen) {
+	drawChat(s)
+	drawSeparator(s)
+	drawPrompt(s, prompt)
+	s.Show()
+	s.Clear()
+}
+
 func listenToServer(conn net.Conn, s tcell.Screen) {
 	decoder := gob.NewDecoder(conn)
 
@@ -117,53 +158,10 @@ func listenToServer(conn net.Conn, s tcell.Screen) {
 		}
 		log.Printf("[INFO] Received broadcast from server: %s", receivedBroadcast.Content)
 
-		if receivedBroadcast.Printable {
-			msgLines := strings.Split(strings.TrimSpace(receivedBroadcast.Content), "\n")
-			for _, line := range msgLines {
-				tempBroadcast := receivedBroadcast
-				tempBroadcast.Content = line
-				chatHistory = append(chatHistory, tempBroadcast)
-			}
-		} else {
-			if receivedBroadcast.Type == common.VERSION {
-				switch receivedBroadcast.Type {
-				case common.VERSION:
-					server_version := strings.TrimSpace(receivedBroadcast.Content)
-					if server_version != CLIENT_VERSION {
-						log.Printf("NO SAME VERSION ERR")
-						localBroadcast := common.Broadcast{
-							Sender:    "__CLIENT__",
-							Content:   fmt.Sprintf("You need to use the same version as the server. \n   Server version:%s\n   Your (client) version: %s", server_version, CLIENT_VERSION),
-							Type:      common.ERROR,
-							Printable: true,
-							Code:      common.C_ERROR,
-						}
-						chatHistory = append(chatHistory, localBroadcast)
-						conn.Close()
-						// TODO: Do a function that does all of visual updating
-						// TODO: Do a function that processes incoming broadcasts (for line splitting, etc)
-						drawChat(s)
-						drawSeparator(s)
-						drawPrompt(s, prompt)
-						s.Show()
-						s.Clear()
-						os.Exit(-1)
-					}
-				}
-			}
-		}
+		processBroadcast(conn, s, receivedBroadcast)
 
-		drawChat(s)
-		drawSeparator(s)
-		drawPrompt(s, prompt)
-		s.Show()
-		s.Clear()
+		drawScreen(s)
 	}
-	// drawChat(s)
-	// drawSeparator(s)
-	// drawPrompt(s, prompt)
-	// s.Show()
-	// s.Clear()
 }
 
 func main() {
@@ -202,7 +200,7 @@ func main() {
 	defStyle := tcell.StyleDefault.Foreground(tcell.ColorWhite)
 	s.SetStyle(defStyle)
 
-	chatHistory = append(chatHistory, common.Broadcast{
+	processBroadcast(conn, s, common.Broadcast{
 		Sender:    "__CLIENT__",
 		Content:   fmt.Sprintf("Running client on version %s", CLIENT_VERSION),
 		Type:      common.TEXT,
@@ -213,11 +211,8 @@ func main() {
 	go listenToServer(conn, s)
 
 	for {
-		drawChat(s)
-		drawSeparator(s)
-		drawPrompt(s, prompt)
-		s.Show()
-		s.Clear()
+		drawScreen(s)
+		log.Printf("Drawn")
 
 		switch ev := s.PollEvent().(type) {
 		case *tcell.EventResize:
@@ -238,8 +233,6 @@ func main() {
 			case tcell.KeyRune:
 				prompt += string(ev.Rune())
 			}
-
 		}
 	}
-
 }

@@ -21,7 +21,7 @@ const (
 const PROMPT_HEIGHT = 1
 
 func main() {
-	argIp := flag.String("ip", "127.0.0.1", "The local IP")
+	argIp := flag.String("ip", "127.0.0.1", "The server's IP")
 	argPort := flag.String("port", "6969", "The port")
 	flag.Parse()
 
